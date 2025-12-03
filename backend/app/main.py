@@ -1,14 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.routes import encrypt_route, download_route
-from app.routes.files_route import router as files_router
 
 app = FastAPI(title="Hybrid Encryption Server")
 
-# Files 라우트
-app.include_router(files_router, prefix="/files", tags=["files"])
-
-# CORS
+# CORS (개발 편의를 위해 전체 허용 – 배포 시 도메인 제한 권장)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,11 +13,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Encryption 라우트
+# 라우트 등록
 app.include_router(encrypt_route.router, prefix="/encrypt", tags=["encrypt"])
+app.include_router(download_route.router)  # 이미 /download prefix 있음
 
-# Download 라우트 (중복 prefix 제거!!)
-app.include_router(download_route.router)
 
 @app.get("/")
 def root():

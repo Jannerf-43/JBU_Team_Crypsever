@@ -1,78 +1,45 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from app.services.encrypt_service import encrypt_file
 
-# cryptography 관련 (PKI 활성 모드에서만 사용)
-from cryptography import x509
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import padding
+from app.services.encrypt_service import encrypt_file
 
 router = APIRouter()
 
-TEST_MODE = True
-# TEST_MODE = False
 
 @router.post("/")
 async def upload_and_encrypt(
     file: UploadFile = File(...),
     cert: UploadFile = File(...),
-    owner_id: str = Form(...)
+    owner_id: str = Form(...),
+    title: str = Form(...),
 ):
-    file_bytes = await file.read()
-    cert_bytes = await cert.read()
+    """파일 + 인증서 업로드 후 암호화 수행
 
-    # ------------------------------------------------------------
-    # 🔵 TEST MODE
-    # ------------------------------------------------------------
-    if TEST_MODE:
-        # try:
-        #     file_id = encrypt_file(file_bytes, cert_bytes, file.filename, owner_id)
-        # except Exception as e:
-        #     raise HTTPException(status_code=500, detail=f"암호화 실패: {str(e)}")
-        # 디버그용, try/except 비활성화
-        file_id = encrypt_file(file_bytes, cert_bytes, file.filename, owner_id)
+    - TEST_MODE 인 경우: self-signed / 미검증 cert 모두 허용
+    - 정식 모드: encrypt_service 내부의 TEST_MODE = False 로 전환 후 사용
+    """
 
+    if not owner_id:
+        raise HTTPException(status_code=400, detail="owner_id 가 필요합니다.")
 
-        return {
-            "file_id": file_id,
-            "mode": "TEST_MODE (PKI 검증 비활성화)",
-            "message": "업로드 및 암호화 성공"
-        }
-
-    # ------------------------------------------------------------
-    # 🔒 FULL PKI MODE
-    # ------------------------------------------------------------
-    try:
-        parsed_cert = x509.load_pem_x509_certificate(cert_bytes)
-    except Exception:
-        raise HTTPException(
-            status_code=400,
-            detail="올바른 인증서 형식이 아닙니다. X.509 PEM 인증서를 업로드하세요."
-        )
+    if not title:
+        raise HTTPException(status_code=400, detail="제목(title)을 입력해야 합니다.")
 
     try:
-        with open("ca_public.pem", "rb") as f:
-            ca_pub = serialization.load_pem_public_key(f.read())
+        file_bytes = await file.read()
+        cert_bytes = await cert.read()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"파일 읽기 실패: {str(e)}")
 
-        ca_pub.verify(
-            parsed_cert.signature,
-            parsed_cert.tbs_certificate_bytes,
-            padding.PKCS1v15(),
-            parsed_cert.signature_hash_algorithm,
-        )
-    except Exception:
-        raise HTTPException(
-            status_code=400,
-            detail="CA에서 발급한 인증서가 아닙니다. CA 검증을 통과하세요."
-        )
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="빈 파일입니다.")
 
-    # 🔥 여기서도 owner_id 반드시 넣어야 함
     try:
-        file_id = encrypt_file(file_bytes, cert_bytes, file.filename, owner_id)
+        file_id = encrypt_file(file_bytes, cert_bytes, file.filename, owner_id, title)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"암호화 실패: {str(e)}")
 
     return {
         "file_id": file_id,
-        "mode": "FULL_PKI_MODE",
-        "message": "업로드 및 암호화 성공 (PKI 검증 통과)"
+        "message": "업로드 및 암호화 성공",
+        "title": title,
     }
