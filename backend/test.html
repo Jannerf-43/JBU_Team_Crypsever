@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>암호화 서버 테스트</title>
+  </head>
+  <body>
+    <h2>🔐 파일 암호화 테스트</h2>
+
+    <form id="form">
+      <p>암호화할 파일: <input type="file" id="file" required /></p>
+      <p>사용자 인증서(.pem): <input type="file" id="cert" required /></p>
+      <button type="submit">암호화 요청</button>
+    </form>
+
+    <pre id="result"></pre>
+
+    <script>
+      document.getElementById('form').onsubmit = async (e) => {
+        e.preventDefault()
+
+        const file = document.getElementById('file').files[0]
+        const cert = document.getElementById('cert').files[0]
+
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('cert', cert)
+
+        const res = await fetch('http://localhost:8000/encrypt/', {
+          method: 'POST',
+          body: formData,
+        })
+
+        const data = await res.json()
+        document.getElementById('result').innerText = JSON.stringify(
+          data,
+          null,
+          2
+        )
+
+        // 다운로드 URL 자동 링크 생성
+        if (data.download_url) {
+          const a = document.createElement('a')
+          a.href = `http://localhost:8000/download/${data.file_id}`
+          a.innerText = '📥암호화된 파일 다운로드'
+          a.download = ''
+          document.body.appendChild(a)
+        }
+      }
+    </script>
+  </body>
+</html>
