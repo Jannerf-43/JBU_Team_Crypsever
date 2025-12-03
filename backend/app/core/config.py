@@ -1,14 +1,12 @@
 import os
 
-# 암호화 파일들을 저장할 폴더
 STORAGE_DIR = "./storage"
 os.makedirs(STORAGE_DIR, exist_ok=True)
 
-#MongoDB 주소
-MONGO_URI = "mongodb+srv://jannerf43:sWX66CLXMAiplzM6@cluster0.p2wubz1.mongodb.net/"
+MONGO_URI = os.getenv("MONGO_URI")
+if not MONGO_URI:
+    raise ValueError("환경변수 MONGO_URI가 설정되지 않았습니다.")
 
-# DB 이름
-DB_NAME = "crypto_serverr"
+DB_NAME = "crypto_server"   
 
-# CA 인증서 파일 경로
-CA_CERT_PATH = None
+CA_CERT_PATH = os.getenv("CA_CERT_PATH", None)
